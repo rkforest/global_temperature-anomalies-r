@@ -447,3 +447,4 @@ decade_plot_5 <- plot_data |>
   scale_y_continuous(breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) +
   coord_cartesian(ylim = c(0,12))
 decade_plot_5
+
