@@ -3,6 +3,7 @@ library(ggthemes)
 library(viridis)
 library(paletteer)
 library(patchwork)
+library(RColorBrewer)
 
 climate_periods_end <- c(1930,1960,1990,2020)
 climate_periods_start <- climate_periods_end - 30
@@ -175,28 +176,25 @@ hemisphere_transformed_data<- fn_add_season(hemisphere_transformed_data)
 
 glimpse(hemisphere_transformed_data)
 
-plot_transparency <- 0.9
+### exploratory plots
 
-scale_option <- "D"
-scale_direction <- -1
-scale_beg <- 0.2
-scale_end <- 1.0
-
-palette <- "pals::coolwarm"
+coolwarm_palette <- "pals::coolwarm"
 y_limits <- c(min(global_transformed_data$Anomaly),
               max(global_transformed_data$Anomaly))
 
 p1 <- global_transformed_data |> 
   ggplot(aes(x=Year, y = Anomaly)) +
-  geom_point(aes(color = Anomaly)) +
+  geom_point(aes(color = Anomaly),size=0.8) +
   ylim(y_limits ) +
-  scale_color_paletteer_c(palette=palette, direction = 1) +
+  scale_color_paletteer_c(palette=coolwarm_palette, direction = 1) +
   geom_smooth(method = "lm") +
   labs(
     subtitle = "Average by Month",
     y = "°C",
     color = "°C")  +
   theme(axis.title.x=element_blank()) 
+p1
+
 
 p2 <- global_transformed_data |> 
   group_by(Year) |> 
@@ -206,7 +204,7 @@ p2 <- global_transformed_data |>
             linewidth=0.8,
             show.legend = FALSE) +
   ylim(y_limits ) +
-  scale_color_paletteer_c(palette=palette, direction = 1) + 
+  scale_color_paletteer_c(palette=coolwarm_palette, direction = 1) +
   labs(subtitle = "Average By Year",
        y = "°C") +
   theme(axis.title.x=element_blank())
@@ -218,7 +216,7 @@ p3 <- global_transformed_data |>
   geom_line(linewidth=0.8,show.legend = FALSE) +
   geom_point(size=1.5,show.legend = FALSE) +
   ylim(y_limits ) +
-  scale_color_paletteer_c(palette=palette, direction = 1) + 
+  scale_color_paletteer_c(palette=coolwarm_palette, direction = 1) +
   labs(subtitle = "Average By Decade") +
   theme(axis.title.x=element_blank(),
         axis.title.y=element_blank())
@@ -237,6 +235,88 @@ time_series_plots_1 <- p1 + p2 + p3 +
 
 time_series_plots_1
 
+
+
+
+
+### bar charts: by month, season, and hemisphere
+
+
+
+
+
+plot_data <- global_transformed_data  |>
+  group_by(Month) |>
+  summarize(avg_anomaly=mean(Anomaly))
+y_limits <- c(min(0,plot_data$avg_anomaly),
+              max(plot_data$avg_anomaly))
+month_bar_chart <- plot_data |>
+  ggplot(aes(x = Month, y = avg_anomaly, fill = avg_anomaly)) +
+  geom_bar(stat='identity',
+           position='dodge',
+           color="black",
+           show.legend = FALSE, 
+           alpha=0.8) +
+  ylim(y_limits ) +
+  labs(title = "By Month",
+       x = "Hemisphere",
+       y = "Anomaly °C") +
+  theme(axis.title.x=element_blank()) +
+  scale_fill_distiller(palette="RdBu", direction = -1)
+
+plot_data <- hemisphere_transformed_data  |>
+  group_by(Season) |>
+  summarize(avg_anomaly=mean(Anomaly))
+y_limits <- c(min(0,plot_data$avg_anomaly),
+              max(plot_data$avg_anomaly))
+season_bar_chart <-plot_data |>
+  ggplot(aes(x = Season, y = avg_anomaly, fill = avg_anomaly)) +
+  geom_bar(stat='identity',
+           position='dodge',
+           color="black",
+           show.legend = FALSE, 
+           alpha=0.8) +
+  ylim(y_limits ) +
+  labs(title = "By Season",
+       x = "Season",
+       y = "Anomaly °C") +
+  theme(axis.title.x=element_blank()) +
+  scale_fill_distiller(palette="RdBu", direction = -1)
+
+plot_data <- hemisphere_transformed_data  |>
+  group_by(Hemisphere) |>
+  summarize(avg_anomaly=mean(Anomaly))
+y_limits <- c(min(0,plot_data$avg_anomaly),
+              max(plot_data$avg_anomaly))
+hemisphere_bar_chart <-plot_data |>
+  ggplot(aes(x = Hemisphere, y = avg_anomaly, fill = avg_anomaly)) +
+  geom_bar(stat='identity',
+           position='dodge',
+           color="black",
+           show.legend = FALSE, 
+           alpha=0.8) +
+  ylim(y_limits ) +
+  labs(title = "By Hemisphere",
+       x = "Hemisphere",
+       y = "Anomaly °C") +
+  theme(axis.title.x=element_blank()) +
+  scale_fill_distiller(palette="RdBu", direction = -1)
+
+plot_title <- paste("Average Global Temperature Anomalies 1881-" , latest_year)
+layout <- "
+AAAAA
+AAAAA
+BBBCC
+"
+bar_plots_1 <- month_bar_chart + season_bar_chart + hemisphere_bar_chart +
+  plot_layout(design = layout) +
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = plot_title)
+bar_plots_1
+
+
+### plots comparing climate periods
+
 plot_title <- "Global Monthly Average Temperature Anomaly by Climate Period"
 
 y_limits <- c(min(global_transformed_data$Anomaly),
@@ -246,7 +326,7 @@ p0 <- global_transformed_data |>
   ggplot(aes(x=Year, y=Anomaly, color=ClimatePeriod)) +
   geom_point(alpha=0.4) +
   ylim(y_limits ) +
-  geom_smooth(method = "lm", size=2, alpha=1.0, se=FALSE) +
+  geom_smooth(method = "lm", linewidth=2, alpha=1.0, se=FALSE) +
   labs(title = plot_title,
        y = "Anomaly °C",
        color = "Climate Period")  +
@@ -263,81 +343,60 @@ climate_plot_1 <- global_transformed_data |>
             alpha=0.8,
             color="grey40") +
   labs(
-    title = "Global Average Temperature Anomalies by Climate Period",
+    subtitle = "Frequency Distribution",
     x = "Temperature Anomaly (°C)",
     y = "Count",
     fill = "Climate Period")  +
   scale_fill_colorblind()
-climate_plot_1
 
 climate_plot_2 <- global_transformed_data |>
   filter(complete.cases(ClimatePeriod)) |> 
   ggplot(aes(x=Anomaly,fill=ClimatePeriod)) +
   geom_histogram(binwidth = 0.1,
                  alpha = 0.8,
-                 color="grey30") +
+                 color="grey30",
+                 show.legend = FALSE) +
   labs(
-    title = "Global Average Temperature Anomalies by Climate Period",
-    subtitle = "Binwidth 0.1 degrees",
+    subtitle = "Histogram (binwidth 0.1 degrees)",
     x = "Temperature Anomaly (°C)",
     y = "Count",
     fill = "Climate Period")  +
   scale_fill_colorblind()
-climate_plot_2
 
 climate_plot_3 <- global_transformed_data |> 
   filter(complete.cases(ClimatePeriod)) |> 
   ggplot(aes(x = ClimatePeriod, y = Anomaly, fill=ClimatePeriod)) +
-  geom_boxplot(alpha = 0.65,
+  geom_boxplot(alpha = 0.8,
                show.legend = FALSE) +
   labs(
-    title = "Global Average Temperature Anomalies by Climate Period",
     subtitle = "Median, Interquartile Range, and Outliers",
     x = "Climate Period",
     y = "Anomaly °C",
     fill = "Climate") +
   scale_fill_colorblind()
-climate_plot_3
 
-climate_plot_4 <- hemisphere_transformed_data  |> 
-  filter(complete.cases(ClimatePeriod)) |> 
-  group_by(ClimatePeriod, Hemisphere) |>
-  summarize(avg_anomaly=mean(Anomaly)) |>
-  ggplot(aes(x = ClimatePeriod, y = avg_anomaly, fill = ClimatePeriod)) +
-  geom_bar(stat='identity',
-           position='dodge',
-           alpha = 0.8,
-           color="black") +
-  labs(title = "Average Temperature Anomaly By Hemisphere",
-       y = "Anomaly °C",
-       fill = "Climate Period") +
-  facet_wrap(~Hemisphere, ncol=2) +
-  scale_fill_colorblind() +
-  theme(axis.text.x = element_blank()) +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.ticks.x = element_blank())
-climate_plot_4
+plot_title <- paste("Global Average Temperature Anomalies by Climate Period")
+layout <- "
+AA
+BB
+"
+climate_period_plots <- climate_plot_1 + climate_plot_2  +
+  plot_layout(design = layout) +
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = plot_title)
+climate_period_plots
+
+plot_title <- paste("Global Average Temperature Anomalies by Climate Period")
+layout <- "
+AA
+"
+climate_period_plots <- climate_plot_3  +
+  plot_layout(design = layout) +
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = plot_title)
+climate_period_plots
 
 
-climate_plot_5 <- hemisphere_transformed_data  |> 
-  filter(complete.cases(ClimatePeriod)) |> 
-  group_by(ClimatePeriod, Season) |>
-  summarize(avg_anomaly=mean(Anomaly)) |>
-  ggplot(aes(x = ClimatePeriod, y = avg_anomaly, fill = ClimatePeriod)) +
-  geom_bar(stat='identity',
-           position='dodge',
-           alpha = 0.9,
-           color="black") +
-  facet_wrap(~Season, ncol=2) +
-  labs(title = "Average Temperature Anomaly By Season",
-       x = "Climate Period",
-       y = "Anomaly °C",
-       fill = "Climate Period")  +
-  scale_fill_colorblind() +
-  theme(axis.text.x = element_blank()) +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.ticks.x = element_blank())
-climate_plot_5
 
 global_data_after_2020 <-
   global_transformed_data  |>
@@ -350,25 +409,6 @@ hemisphere_data_after_2020 <-
 year_labels <- c("2021", "2022", "2023", "2024", "2025")
 
 
-decade_plot_1 <- hemisphere_data_after_2020 |> 
-  group_by(Hemisphere, Month) |>
-  summarize(avg_anomaly=mean(Anomaly)) |>
-  ggplot(aes(x = Hemisphere, y = avg_anomaly, fill = Month)) +
-  geom_bar(stat='identity',
-           position='dodge',
-           alpha = plot_transparency,
-           color="black") +
-  labs(title = "Average Temperature Anomaly By Hemisphere and Month",
-       subtitle = "2015-2025",
-       x = "Hemisphere",
-       y = "Anomaly °C") +
-  scale_fill_viridis(option=scale_option,
-                     begin = scale_beg,
-                     end = scale_end,
-                     direction = scale_direction,
-                     discrete =TRUE)
-decade_plot_1
-
 scale_option <- "D"
 scale_direction <- 1
 scale_beg <- 0.0
@@ -379,20 +419,7 @@ scale_direction <- 1
 scale_beg <- 0.0
 scale_end <- 0.7
 
-decade_plot_2 <- hemisphere_data_after_2020 |> 
-  group_by(Hemisphere, Season) |>
-  summarize(avg_anomaly = mean(Anomaly)) |>
-  ggplot(aes(x = Hemisphere, y = avg_anomaly, fill=Season)) +
-  geom_bar(stat='identity',
-           position='dodge',
-           alpha = plot_transparency,
-           color="black") +
-  labs(title = "Average Temperature Anomaly By Hemisphere and Season",
-       subtitle = "2015-2025",
-       y = "Anomaly")  +
-  scale_fill_colorblind() +
-  theme(axis.title.x=element_blank())
-decade_plot_2
+### plots of last 5 years
 
 plot_data <- global_transformed_data  |>
   filter(Year > 2020) |>
@@ -422,29 +449,11 @@ decade_plot_4 <- plot_data |>
   ggplot(aes(x = Year, y=Count, fill=Count)) +
   geom_col(color="black") +
   labs(title = "Count of Months per Year with Hemisphere Average Temperature > 1.5°C",
-       subtitle = "2015-2025",
+       subtitle = paste("2021 -", latest_year),
        x = "Year",
        y = "Count") +
   scale_color_colorblind() +
   scale_y_continuous(breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) +
   coord_cartesian(ylim = c(0,12))
 decade_plot_4
-
-plot_data <- hemisphere_transformed_data  |>
-  filter(Year > 2020) |>
-  filter(Anomaly >= 1.5) |>
-  mutate(Year = factor(Year, levels = year_labels)) |> 
-  count(Year, name = "Count", .drop = FALSE)
-y_limits <- c(1,12)
-decade_plot_5 <- plot_data |> 
-  ggplot(aes(x = Year, y=Count, fill=Count)) +
-  geom_col(color="black") +
-  labs(title = "Count of Months per Year with Hemisphere Average Temperature > 1.5°C",
-       subtitle = "2015-2025",
-       x = "Year",
-       y = "Count") +
-  scale_color_colorblind() +
-  scale_y_continuous(breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) +
-  coord_cartesian(ylim = c(0,12))
-decade_plot_5
 
